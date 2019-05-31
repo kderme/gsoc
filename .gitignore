@@ -1,0 +1,16 @@
+## Haskell build
+dist
+dist-newstyle
+*.hi
+*.o
+.stack-work/
+.ghc*
+
+## Editor ignores
+TAGS
+*~
+*.swp
+
+## databases
+test.db3
+*.sqlite3

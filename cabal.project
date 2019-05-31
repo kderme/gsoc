@@ -1,0 +1,6 @@
+packages : .
+           ../quickcheck-state-machine
+           ../persistent/persistent-sqlite
+           ../persistent/persistent
+           ../persistent/persistent-template
+
