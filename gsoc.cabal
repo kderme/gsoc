@@ -17,34 +17,39 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:     PersistentExample
+                      , Schema
   -- other-modules:
   -- other-extensions:
   ghc-options:         -threaded
   build-depends:       base ^>=4.12.0.0
                      , async
+                     , containers
                      , QuickCheck
                      , persistent
                      , persistent-template
                      , persistent-sqlite
                      , monad-logger
                      , resource-pool
+                     , directory
                      , QuickCheck
                      , quickcheck-state-machine
   hs-source-dirs:      src
   default-language:    Haskell2010
-
+ 
 executable gsoc
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
   build-depends:       base ^>=4.12.0
                      , async
+                     , containers
                      , gsoc
                      , monad-logger
                      , persistent
                      , persistent-template
                      , persistent-sqlite
                      , resource-pool
+                     , directory
                      , QuickCheck
                      , quickcheck-state-machine
   hs-source-dirs:      src

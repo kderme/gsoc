@@ -8,6 +8,16 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+
+import System.Environment
+
 import PersistentExample
 
-main =run
+
+main = do
+    args <- getArgs
+    case read $ head args of
+        0 -> run
+        1 -> run'
+--        2 -> run''
+
