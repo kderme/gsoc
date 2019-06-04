@@ -102,7 +102,7 @@ instance Arbitrary (SelectOpt Car) where
                       ]
 
 instance Arbitrary PersistFilter where
-    arbitrary = elements [Eq, Ne, Gt, Lt, Ge, Le]
+    arbitrary = elements [Eq, Ne, Gt, Lt, Ge, Le, In, NotIn]
 
 instance Arbitrary (Filter Person) where
     arbitrary = do
@@ -379,18 +379,18 @@ shrinkerImpl _ _ = []
 generatorImpl :: Model Symbolic -> Maybe (Gen (At Cmd Symbolic))
 generatorImpl m@Model {..} = Just $ At <$> arbitrary
 
-semanticsImpl ::  MonadIO m => Pool SqlBackend -> At Cmd Concrete -> m (At Resp Concrete)
-semanticsImpl poolBackend cmd = do
+semanticsImpl ::  MonadIO m => Pool SqlBackend -> MVar () -> At Cmd Concrete -> m (At Resp Concrete)
+semanticsImpl poolBackend _lock cmd = do
     case unAt cmd of
         Migrate (migration, _tag) -> do
-            ret <- liftIO $ try $ flip runSqlPersistMPool poolBackend $ retryOnBusy $
+            ret <- liftIO $ try $ runStdoutLoggingT $ retryOnBusy $ flip runSqlPool poolBackend $
                 runMigration $ unOpaque migration
             case ret of
                 Right () -> return $ At $ Resp $ Right $ Unit ()
                 Left (e :: SqliteException) ->
                     return $ At $ Resp $ Left e
         Insert te-> do
-            ret <- liftIO $ try $ flip runSqlPersistMPool poolBackend $ retryOnBusy $
+            ret <- liftIO $ try $ runStdoutLoggingT $ retryOnBusy $ flip runSqlPool poolBackend $
                 case te of
                     TPerson person -> insert_ person
                     TCar car -> insert_ car
@@ -399,7 +399,7 @@ semanticsImpl poolBackend cmd = do
                 Left (e :: SqliteException) ->
                     return $ At $ Resp $ Left e
         SelectList ts -> do
-            ret <- liftIO $ try $ flip runSqlPersistMPool poolBackend $ retryOnBusy $
+            ret <- liftIO $ try $ runStdoutLoggingT $ retryOnBusy $ flip runSqlPool poolBackend $
                 case ts of
                     SPerson (TableSelect fop sop) -> do
                         (pers :: [Entity Person]) <- selectList fop sop
@@ -420,9 +420,11 @@ postconditionImpl :: Model Concrete -> At Cmd Concrete -> At Resp Concrete -> Lo
 postconditionImpl model cmd resp =
     equalResp' (toMock (eventAfter ev) resp) (eventMockResp ev)
   where
+    -- this only check if the ansers both succed or both fail.
     equalResp' (Resp (Right _)) (Resp (Right _)) = Top
     equalResp' (Resp (Left _)) (Resp (Left _)) = Top
     equalResp' _ _ = Bot
+    -- A stricter equality.
     equalResp r1 r2 = case (unAt cmd, r1, r2) of
         (SelectList (SPerson (TableSelect _ sop)), Resp (Right (List l1)), Resp (Right (List l2))) | orders sop->
             l1 .== l2
@@ -443,93 +445,75 @@ transitionImpl :: Model r -> At Cmd r -> At Resp r -> Model r
 transitionImpl model cmd = eventAfter . lockstep model cmd
 
 
-sm :: MonadIO m => Pool SqlBackend -> StateMachine Model (At Cmd) m (At Resp)
-sm  poolBackend = StateMachine {
+sm :: MonadIO m => Pool SqlBackend -> MVar () -> StateMachine Model (At Cmd) m (At Resp)
+sm  poolBackend lock = StateMachine {
      initModel     = initModelImpl
    , transition    = transitionImpl
    , precondition  = preconditionImpl
    , postcondition = postconditionImpl
    , generator     = generatorImpl
    , shrinker      = shrinkerImpl
-   , semantics     = semanticsImpl poolBackend
+   , semantics     = semanticsImpl poolBackend lock
    , mock          = mockImpl
    , invariant     = Nothing
    }
 
 smUnused :: StateMachine Model (At Cmd) IO (At Resp)
-smUnused = sm undefined
+smUnused = sm undefined undefined
 
 prop_sequential_sqlite :: Property
 prop_sequential_sqlite =
     forAllCommands smUnused Nothing $ \cmds -> monadicIO $ do
         liftIO $ removePathForcibly "test.db"
         poolBackend <- liftIO $ runStdoutLoggingT $ createSqlitePool "test.db" 5
-        (hist, _model, res) <- runCommands (sm poolBackend)  cmds
+        lock <- liftIO $ newMVar ()
+        (hist, _model, res) <- runCommands (sm poolBackend lock)  cmds
         prettyCommands smUnused hist $ res === Ok
 
 prop_parallel_sqlite ::  Property
 prop_parallel_sqlite =
-    forAllParallelCommands smUnused $ \cmds -> monadicIO $ do
-        liftIO $ removePathForcibly "test.db"
-        poolBackend <- liftIO $ runStdoutLoggingT $ createSqlitePool "test.db" 5
-        prettyParallelCommands cmds =<< runParallelCommands (sm poolBackend) cmds
-
-
-
--- prop_sequential_psql :: Property
--- prop_sequential_psql =
---     forAllCommands smUnused Nothing $ \cmds -> monadicIO $ do
---         liftIO $ removePathForcibly "test.db"
---         poolBackend <- liftIO $ runStdoutLoggingT $ createSqlitePool "test.db" 2
---         (hist, _model, res) <- runCommands (sm poolBackend)  cmds
---         prettyCommands smUnused hist $ res === Ok
+    forAllGeneralParallelCommands smUnused 4 $ \cmds -> monadicIO $ do
+        liftIO $ do
+            removePathForcibly "dbs"
+            createDirectory "dbs"
+        poolBackend <- liftIO $ runStdoutLoggingT $ createSqlitePool "dbs/sqlite.db" 5
+        lock <- liftIO $ newMVar ()
+        prettyGeneralParallelCommands cmds =<< runGeneralParallelCommandsNTimes 1 (sm poolBackend lock) cmds
+        liftIO $ destroyAllResources poolBackend
+--        liftIO $ close' poolBackend
 
 run :: IO ()
 run = do
     -- print $ isIdField $ CarId
-    quickCheck $ prop_parallel_sqlite
-
-
--- instance CommandNames (At Cmd) where
---     cmdName (At cmd) = case cmd of
---         Migrate {} -> "Migrate"
---         Insert {} -> "Insert"
---         SelectList {} -> "SelectList"
+    verboseCheck $ prop_parallel_sqlite
 
 connStr = "host=localhost dbname=test user=test password=test port=5432"
 
--- run'' :: IO ()
--- run'' = do
---     runStderrLoggingT $ withPostgresqlPool connStr 10 $ \pool -> liftIO $ do
---         flip runSqlPersistMPool pool $ do
---             runMigration migrateAll
---             insert_ $ Person "John Doe" 35
---             (pers :: [Entity Person]) <- selectList [Filter PersonAge (FilterValue 1) Ne] []
---             liftIO $ print pers
--- 
-
-
 run' :: IO ()
 run' = do
-    poolBackend <- runStdoutLoggingT $ createSqlitePool "testdb" 2
+    removePathForcibly "dbs-test"
+    createDirectory "dbs-test"
+    poolBackend <- runStdoutLoggingT $ createSqlitePool "dbs-test/sqlite.db" 2
     runStdoutLoggingT $ flip runSqlPool poolBackend $ do
-        runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Person)
-        runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Person)
-        runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Car)
-        --insert_ $ Car 1 " black" (PersonKey "Kostas")
-        insert_ $ Person "kostas" 5
-        insert_ $ Person "John" 10
-        (pers :: [Entity Person]) <- selectList [Filter PersonAge (FilterValue 1) Ne] []
+    --     runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Person)
+         runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Person)
+         runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Car)
+    --     --insert_ $ Car 1 " black" (PersonKey "Kostas")
+    --     insert_ $ Person "kostas" 5
+    --     insert_ $ Person "John" 10
+    --     (pers :: [Entity Person]) <- selectList [Filter PersonAge (FilterValue 1) Ne] []
         -- (pers :: [Entity Person]) <- selectList []
 --        (pers :: [Entity Person]) <- selectList [] [LimitTo 0, OffsetBy 1]
-        liftIO $ print pers
+       -- liftIO $ print pers
 --    thread0 poolBackend
 --    print $ persistUniqueKeys Car
---    p0 <- asyncBound $ thread0 poolBackend
---    p1 <- asyncBound $ thread1 poolBackend
+    p0 <- async $ thread0 poolBackend
+    p1 <- async $ thread1 poolBackend
 --     --thread0 lock poolBackend
 --     -- traverse wait [p0, p1]
---    waitBoth p0 p1
+    _ <- waitBoth p0 p1
+    destroyAllResources poolBackend
+    return ()
 --    flip runSqlPersistMPool poolBackend $ do
 --        (pers :: [Entity Person]) <- selectList [] []
 --        liftIO $ print $ length pers
@@ -539,20 +523,16 @@ run' = do
 thread0 ::
     Pool SqlBackend -> IO ()
 thread0 backend = forM_ [1..1000] $ \n -> do
-    x <- runStdoutLoggingT $ flip runSqlPool backend $ do
-            (pers :: [Entity Person]) <-
-                selectList [] [] -- [LimitTo 2, OffsetBy 0, Desc PersonAge, Asc PersonAge]
-            return pers
-    print x
+    runStdoutLoggingT $ flip runSqlPool backend $ retryOnBusy $ do
+        insert_ $ Person ("kostas" ++ show n) n
+--            runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Person)
 
 thread1 ::
     Pool SqlBackend -> IO ()
 thread1 backend = forM_ [1..1000] $ \n -> do
-    x <- runStdoutLoggingT $ flip runSqlPool backend $ do
-            (pers :: [Entity Person]) <-
-                selectList [] [] -- [LimitTo 2, OffsetBy 0, Desc PersonAge, Asc PersonAge]
-            return pers
-    print x
+    runStdoutLoggingT $ flip runSqlPool backend $ retryOnBusy $ do
+        insert_ $ Person (show n) 0
+--            runMigration $ migrate entityDefs $ entityDef (Nothing :: Maybe Car)
 
 
 -- expected =
