@@ -16,13 +16,16 @@ maintainer:          k.dermenz@gmail.com
 extra-source-files:  CHANGELOG.md
 
 library
-  exposed-modules:     PersistentExample
+  exposed-modules:      Orphans
+                      , PersistentExample
                       , Schema
   -- other-modules:
   -- other-extensions:
   ghc-options:         -threaded
   build-depends:       base ^>=4.12.0.0
                      , async
+                     , async-queue
+                     , bifunctors
                      , containers
                      , QuickCheck
                      , persistent
@@ -30,18 +33,22 @@ library
                      , persistent-sqlite
                      , monad-logger
                      , resource-pool
+                     , tree-diff
                      , directory
                      , QuickCheck
                      , quickcheck-state-machine
+                     , pthread
   hs-source-dirs:      src
   default-language:    Haskell2010
- 
+
 executable gsoc
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
   build-depends:       base ^>=4.12.0
                      , async
+                     , async-queue
+                     , bifunctors
                      , containers
                      , gsoc
                      , monad-logger
@@ -49,9 +56,11 @@ executable gsoc
                      , persistent-template
                      , persistent-sqlite
                      , resource-pool
+                     , tree-diff
                      , directory
                      , QuickCheck
                      , quickcheck-state-machine
+                     , pthread
   hs-source-dirs:      src
 
   ghc-options:         -threaded

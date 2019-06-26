@@ -4,4 +4,6 @@ packages : .
            ../persistent/persistent
            ../persistent/persistent-postgresql
            ../persistent/persistent-template
+           ../async-queue
+           ../pthread
 

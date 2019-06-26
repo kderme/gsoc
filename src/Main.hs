@@ -19,5 +19,7 @@ main = do
     case read $ head args of
         0 -> run
         1 -> run'
+        2 -> run''
+        3 -> runMutex
 --        2 -> run''
 
