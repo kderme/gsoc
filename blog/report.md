@@ -1,5 +1,5 @@
 I wrote many q-s-m tests for persistent
-/home/kostas/Desktop/gsoc/sqlite.pdf
+https://github.com/kderme/gsoc
 I used this test suite to find bugs in q-s-m itself, but I also found a small bug in persistent and I prepared a pr which fixes it
 https://github.com/yesodweb/persistent/pull/915 (hasn't received any review yet)
 
