@@ -1,7 +1,7 @@
 I wrote many q-s-m tests for persistent
 https://github.com/kderme/gsoc
 I used this test suite to find bugs in q-s-m itself, but I also found a small bug in persistent and I prepared a pr which fixes it
-https://github.com/yesodweb/persistent/pull/915 (hasn't received any review yet)
+https://github.com/yesodweb/persistent/pull/915 (hasn't received any review yet) and https://github.com/yesodweb/persistent/pull/922
 
 I generalized paralellism in q-s-m to an arbitrary number of threads (was limited to 2)
 https://github.com/advancedtelematic/quickcheck-state-machine/pull/324
