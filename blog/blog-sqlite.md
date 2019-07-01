@@ -154,7 +154,7 @@ This fixes the error. However if we try to look carefully how these queries are 
 
 Fairness is one of the issues we tried to solve. Our implementation puts all the write requests on a queue and there is a single long living thread, which takes the requests from the queue and runs them. (this approach is also suggested here https://news.ycombinator.com/item?id=20047918). The write-thread is forked at the beginning of the execution and it waits for db actions on a forever loop. Any thread which wants to write to the db puts their request on a queue, together with a TMVar. Then it waits on the TMVar for the result. If it is an exception it rethrows it. This way it is not visible to the user that it’s a different thread which does all the writing.
 
-Our implementation
+# Our implementation
 In our implementaion we model our db actions with this:
 ``` haskell
 data AsyncAction r = forall a. AsyncAction (r -> IO a) (TMVar (Either SomeException a))
