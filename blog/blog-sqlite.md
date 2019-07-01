@@ -291,6 +291,7 @@ We have implemented a new library which can be used to access SQlite concurrentl
 In addition we have adopted our implementation in persistent and we have thoroughly tested it with quickcheck-state-machine (more on this on another blog), even with tens of concurrent threads (we have very recently implemented this functionality in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/pull/324).
 
 
+# References
 [1] Parallel and Concurrent Programming in Haskell
 
 [2] Marlow, S., Peyton Jones, S., and Thaller, W. (2004). Extending the Haskell Foreign Function Interface with concurrency. In Proceedings of Haskell Workshop, Snowbird, Utah, pages 57–68.
