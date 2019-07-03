@@ -201,7 +201,7 @@ As a matter of fact, this is what we do here. But instead of forking a thread ea
 ``` haskell
 data IOReq
   = Read   Fd (MVar ())
-  |  Write  Fd (MVar ())
+  | Write  Fd (MVar ())
 ```
 We used TMVar instead of MVars, in order to use the existing STM mechanism that TBQueue uses. This provides better composability, but we may need to take a look at the performance implications (MVars are usually faster).
 
