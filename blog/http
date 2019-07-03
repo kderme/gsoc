@@ -1,7 +1,7 @@
 
 # SQlite
 
-SQlite is an in-process SQL database written in C. SQlite differs from other databases in that it uses a simple file for all storage and it is serverless. This means that if you want to use SQlite through Haskell you need to directly call into c code, using an interface called foreign function interface (FFI). All Haskell libraries which provide these c bindings (like direct-sqlite, persistent..)  come with a c file, called The SQLite Amalgamation, which is  a concatenation of all SQlite c code into a huge 220.000 lines file. The interaction with foreign functions is notorious for its complications. In this blog we will discuss about proper ways to use SQlite in multithreaded applications and propose a new way, which we have implemented and tested with quickcheck-state-machine (more on this on another blog).
+SQlite is an in-process SQL database written in C. SQlite differs from other databases in that it uses a simple file for all storage and it is serverless. This means that if you want to use SQlite through Haskell you need to directly call into c code, using an interface called foreign function interface (FFI). All Haskell libraries which provide these c bindings (like direct-sqlite, persistent..)  come with a c file, called The SQLite Amalgamation, which is  a concatenation of all SQlite c code into a huge 220.000 lines file. The interaction with foreign functions is notorious for its complications. In this blog we will discuss about proper ways to use SQlite in multithreaded applications and propose a new way, which we have implemented and tested with quickcheck-state-machine (more on this on another blog) and was inspired by discussions here https://news.ycombinator.com/item?id=20047918.
 
 First let's get a bit familiar with SQlite. The SQlite project provides a simple, easy to install, command-line program named sqlite3.
 
@@ -152,15 +152,15 @@ thread p backend = forM_ [1..1000] $ \n -> do
 ```
 This fixes the error. However if we try to look carefully how these queries are executed, we will see that there is no fairness between the two threads. This happens because in case of BusyErrors, the thread waits on an exponential backoff. So if there is one thread which continuously writes, the other threads starve.
 
+# Our implementation
 Fairness is one of the issues we tried to solve. Our implementation puts all the write requests on a queue and there is a single long living thread, which takes the requests from the queue and runs them. (this approach is also suggested here https://news.ycombinator.com/item?id=20047918). The write-thread is forked at the beginning of the execution and it waits for db actions on a forever loop. Any thread which wants to write to the db puts their request on a queue, together with a TMVar. Then it waits on the TMVar for the result. If it is an exception it rethrows it. This way it is not visible to the user that it’s a different thread which does all the writing.
 
-# Our implementation
 In our implementaion we model our db actions with this:
 ``` haskell
 data AsyncAction r = forall a. AsyncAction (r -> IO a) (TMVar (Either SomeException a))
 ```
 r is the resource (in our case the db connection) that only the write thread has access to.
-The TMVar will get the response of the thread. This can be successful or some exception which is wrapped inside SomeException.
+The TMVar will get the response of the thread. This can be successful or some exception.
 
 User threads can write actions to a queue (we used TBQueue, since they are bounded and can save us from a lot of issues):
 ``` haskell
@@ -169,7 +169,6 @@ writeTBQueue asyncQueue $ AsyncAction action resp
 ret <- atomically $ takeTMVar resp
 ```
 Here `action` is the db action the user thread wants to execute.
-
 
 The write thread waits on a loop for new actions:
 ``` haskell
@@ -181,14 +180,14 @@ go = do
 ```
 Our implementation is very similar to async and it was influenced by it a lot and in fact we initially tried to use it instead. The difference is that in async the thread lives only for the duration of the execution of the IO action and cannot return the result without dying. In our case we want a thread which continues to live. Another package called immortal provides similar functionality, but it is more general purpose and doesn't directly facilitate us.
 
-As you may have noticed our implementation is not limited to SQlite or dbs, but it is built to be a lot more general. We have implemented it as a different package called async-queue and plan to publish on hackage. We have also adopted Persistent to use this package. We believe it can be easily ported to other Haskell datastores which support SQlite.
+As you may have noticed our implementation is not limited to SQlite or dbs, but it is built to be a lot more general. We have implemented it as a different package called async-queue and plan to publish on hackage. We have also forked Persistent and adopted it to use this package. We believe it can be easily ported to other Haskell datastores which support SQlite.
 
-It may seem that serializing writes on a thread decreases parallelism, but as we saw, SQlite doesn’t allow concurrent writes, anyway. Our implementation works very well with the new atomic transaction mode provided by SQlite, called Write-Ahead-Log. https://www.sqlite.org/wal.html, which Persistent enables by default. This mode enables concurrent reads, so serializing only the writes makes perfect sense. So our implementation achives the best possible outcome: maximize parallelism, since it allows concurrent reads and avoids annoying Busy errors, by serialising writes in a fair queue.
+It may seem that serializing writes on a thread decreases parallelism, but as we saw, SQlite doesn’t allow concurrent writes, anyway. Our implementation works very well with the new atomic transaction mode provided by SQlite, called Write-Ahead-Log. https://www.sqlite.org/wal.html, which Persistent enables by default. This mode enables concurrent reads, so serializing only the writes makes perfect sense. So our implementation achives the best possible outcome: maximizes parallelism, since it allows concurrent reads and avoids annoying Busy errors, by serialising writes in a fair, fifo queue.
 
-Keeping a connection for writing open for very long is also a good option. In WAL mode, SQlite manages to limit a lot syncing data to disk. However closing the connection forces an fsync(), which we avoid. fsync() is an operation in which the content of data found in memory buffers or in page tables and caches is forced to the disk and is one of the biggest performance issues for databases.
+Keeping a connection for writing open is a good option for other reasons. In WAL mode, SQlite manages to limit a lot syncing data to disk. However closing the connection forces an fsync(), which we avoid. fsync() is an operation in which the content of data found in memory buffers or in page tables and caches is forced to the disk and is one of the biggest performance issues for databases.
 
 # Foreign Calls
-This approach simultaneously solves a different issue. Calling into foreign code has a big disadvantage: The thread cannot be interrupted. This can be frustrating to the user, especially when he tries to stop the execution with a ^C action. This is the reason why it is usually advised not to directly call into foreign code, but to fork a thread and let this thread do the foreign calls. 
+This approach simultaneously solves a different issue. Calling into foreign code has a big disadvantage: the thread cannot be interrupted. This can be frustrating to the user, especially when he tries to stop the execution with ^C. This is the reason why it is usually advised not to directly call into foreign code, but to fork a thread and let this thread do the foreign calls. 
 
 (from Parallel & Concurrent Programming in Haskell):
 ``` haskell
@@ -198,7 +197,7 @@ do
 ```
 This way the user thread waits on a STM for the execution to end. This makes the thread interruptible: a thread waiting on a STM can be easily interrupted by an asynchronous exception.
 
-As a matter of fact, this is what we do here. But instead of forking a thread each time we want to access the db, we fork a thread at the beginning which waits for db actions. Actually, when someone uses System.IO functions he get the same functionality behind the scenes, from the IO Manager. The I/O manager (amongst other things) delegates some IO operations to special threads, so that the user threads are interruptible. It’s interesting to see that the structures of I/O managers are similar to the structures we use. The runtime keeps a global list of pending events, called pendingEvents, containing a elements of the following data type (simplified):
+As a matter of fact, this is what we do here. But instead of forking a thread each time we want to access the db, we fork a thread at the beginning which waits for db actions. Actually, when someone uses System.IO functions he gets the same functionality behind the scenes, from the I/O Manager. The I/O manager (amongst other things) delegates some IO operations to special threads, so that the user threads are interruptible. It’s interesting to see that the structures of I/O managers are similar to the structures we use:
 ``` haskell
 data IOReq
   = Read   Fd (MVar ())
@@ -263,7 +262,7 @@ dummyIOAction = writeFile "/dev/null" (show $ fib 42)
 We have 2 threads trying to run on a critical area and we protect this critical area with these mutexes. Note that we create some additional threads which run dummy actions. This creates bigger contention to the scheduler for the os threads available. In addition we compile with -threaded -rtsopts "-with-rtsopts=-N2", which allows using only 2 os threads. This makes contention even bigger. Note that in this implementation we don't care a lot about exceptions.
 
 If we try to execute this it will sometimes deadlock and sometimes fail, with something like
-ConcError "Thread 6 expected False on trial 6"
+`ConcError "Thread 6 expected False on trial 6"`
 On the other hand, if we replace async with asyncBound, nothing bad happens.
 
 I believe it's pretty clear what happens at this point. If our Haskell thread gets context switched and later scheduled on a different os thread, while owning this mutex, the results are disastrous. We printed the thread ids at the beginning of the critical area and after returning form the dummyIOAction and we confirmed that the threadId changes. Note that we are not referring to the thread Id returned by `Control.Concurrent.myThreadId` but from `System.Posix.Thread.myThreadId`, which is basically a system call for unix like systems and returns the id of the os thread currently running. This thread id can dynamically change in the lifetime of a Haskell thread which is not os bound.
@@ -271,11 +270,9 @@ I believe it's pretty clear what happens at this point. If our Haskell thread ge
 What's interesting is that the program deadlocks even if only a single thread tries to enter the critical area (that is if we completely erase the b thread and replace waitboth a b by wait a). This is because as we mentioned the recursive mutexes remember the os thread which owns them and can't allow other threads to unlock them.
 
 If we compile our executable without -threaded, the Haskell runtime can only manage a single os thread and multiplexes all Haskell threads to it. This means that the mutex here provides no safety since all Haskell thread map to a single os thread and ownership of the mutex means that all Haskell threads own it. The execution fails with:
-ConcError "Thread 1 expected False on trial 1"
-
-Deadlock cannot happen in this case. If we have a single thread trying to get in the critical area no error can occur. Also using asyncBound is impossible, since without -threaded, ghc has no way to know how to fork new os threads, so it fails:
-
-user error (RTS doesn't support multiple OS threads (use ghc -threaded when linking))
+`ConcError "Thread 1 expected False on trial 1"`
+Deadlock cannot happen in this case. If we have a single thread trying to get in the critical area no error can occur withouy -threaded. Also using asyncBound is impossible, since without -threaded, ghc has no way to know how to fork new os threads, so it fails:
+`user error (RTS doesn't support multiple OS threads (use ghc -threaded when linking))`
 
 It may seem very strange that we even use mutexes from Haskell code. But we must not forget that we use them every time we call into SQlite. It seems though that threads own mutexes only during the duration of a foreign calls and don’t return from them while still holding the mutexes. This successfully hides the problem, because during a foreign call, the Haskell thread which initiated it cannot migrate to a different os thread, so the ownership problems we mentioned above no longer exists.
 
@@ -286,7 +283,7 @@ We have implemented a new library which can be used to access SQlite concurrentl
 - avoids Busy Errors.
 - provides a safe way to call into foreign functions.
 - it makes good use of the new SQlite WAL mode and minimizes expensive fsync.
-- our library can have further use cases, like protection from libraries which need os bound threads.
+- our library can have further use cases, like easy use of libraries which need os bound threads.
 
 In addition we have adopted our implementation in persistent and we have thoroughly tested it with quickcheck-state-machine (more on this on another blog), even with tens of concurrent threads (we have very recently implemented this functionality in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/pull/324).
 
