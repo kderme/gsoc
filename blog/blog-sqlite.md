@@ -1,7 +1,7 @@
 
-# SQLite (Stevan: Better title? GSOC report: Improving and testing Haskell's SQLite bindings?)
+Testing Multithreaded SQLite (GSoC 2019 report)
 
-SQLite is an in-process SQL database written in C. SQLite differs from other databases in that it uses a simple file for all storage and it is serverless. This means that if you want to use SQLite through Haskell you need to directly call into C code, using an interface called foreign function interface (FFI). All Haskell libraries which provide these C bindings (like direct-sqlite, persistent..)  come with a C file, called The SQLite Amalgamation, which is  a concatenation of all SQLite C code into a huge 220.000 lines file. The interaction with foreign functions is notorious for its complications. In this blog we will discuss about proper ways to use SQLite in multithreaded applications and propose a new way, which we have implemented and tested with quickcheck-state-machine (more on this on another blog) and was inspired by discussions [here](https://news.ycombinator.com/item?id=20047918). (Stevan: this last sentence here can improved, "propose a new way" to do what? Also I'd put this sentence first in this paragraph, before explaining what sqlite is, otherwise you leave the reader hanging wondering "what is this post about?!")
+In this blog we propose a new way to use SQLite in multithreaded applications, which we have implemented and tested with quickcheck-state-machine (more on this on another blog) and was inspired by discussions [here](https://news.ycombinator.com/item?id=20047918). SQLite is an in-process SQL database written in C. It differs from other databases in that it uses a simple file for all storage and it is serverless. This means that if you want to use SQLite through Haskell you need to directly call into C code, using an interface called foreign function interface (FFI). All Haskell libraries which provide these C bindings (like direct-sqlite, persistent..)  come with a C file, called The SQLite Amalgamation, which is  a concatenation of all SQLite C code into a huge 220.000 lines file. The interaction with foreign functions is notorious for its complications.  
 
 First let's get a bit familiar with SQLite. The SQLite project provides a simple, easy to install, command-line program named sqlite3.
 
@@ -32,7 +32,7 @@ Error: cannot start a transaction within a transaction
 ok we can't. By default SQLite is always in auto-commit mode. This means that for each command, SQLite starts, processes, and commits the transaction automatically. A begin command makes an sqlite connection leave from autocommit mode. This is important because we don't want to commit each command separately, but group commands together. However trying to leave autocommit mode 2 times is a mistake. It may seem strange to even try to do this, but we later see that this is an important issue when two threads share the same db connection (this is something we can't test from sqlite3).
 
 But what about a second connection? How does it interact with the existing connection?
-Lets use `sqlite3` again to open a second connection (Stevan: is this supposed to be in two different terminals? If so maybe say so to make it clear?)
+Lets use `sqlite3` again to open a second connection from a different terminal.
 ```
 			# sqlite3 sqlite3.db
 			> .schema
@@ -178,7 +178,7 @@ go = do
 	atomically $ putTMVar tmvar ret
 	go
 ```
-Our implementation is very similar to the `async` library and it was influenced by it a lot and in fact we initially tried to use it instead. The difference is that in `async` the thread lives only for the duration of the execution of the IO action and cannot return the result without dying. In our case we want a thread which continues to live. Another package called `immortal` provides similar functionality, but it is more general purpose and doesn't directly facilitate us. (Stevan: add links to the async and immortal?)
+Our implementation is very similar to the `async` library and it was influenced by it a lot and in fact we initially tried to use it instead. The difference is that in `async` the thread lives only for the duration of the execution of the IO action and cannot return the result without dying. In our case we want a thread which continues to live. Another package called `immortal` (http://hackage.haskell.org/package/immortal) provides similar functionality, but it is more general purpose and doesn't directly facilitate us.
 
 As you may have noticed our implementation is not limited to SQLite or dbs, but it is built to be a lot more general. We have implemented it as a different package called `async-queue` and plan to publish on Hackage. We have also forked Persistent and adopted it to use this package. We believe it can be easily ported to other Haskell datastores which support SQLite. (Stevan: links to async-queue github repo and persistent PR?)
 
@@ -276,10 +276,8 @@ Deadlock cannot happen in this case. If we have a single thread trying to get in
 
 It may seem very strange that we even use mutexes from Haskell code. But we must not forget that we use them every time we call into SQLite. It seems though that threads own mutexes only during the duration of a foreign calls and don’t return from them while still holding the mutexes. This successfully hides the problem, because during a foreign call, the Haskell thread which initiated it cannot migrate to a different os thread, so the ownership problems we mentioned above no longer exists.
 
-# Results
-(Stevan: I'd maybe rather call this section Summary, and also breifly summarises what you've show/explained and how it inspired you to implement the new library and the benefits it has. It would be good if somebody who scrolls down and reads this section first still gets a short but comprehensible version of the blog post...)
-
-We have implemented a new library (Stevan: Which library? Link?) which can be used to access SQLite concurrently. Our approach provides some important benefits:
+# Summary
+SQlite provides a very low level api and we have seen that it's not very easy to use it properly from multiple threads. Discussions [here](https://news.ycombinator.com/item?id=20047918) inspired us to implement a new library (https://github.com/kderme/async-queue) which can be used to access SQLite concurrently. Our approach provides some important benefits:
 - ensures fairness since writes are enqueued
 - maximizes parallelism.
 - avoids Busy Errors.
@@ -287,7 +285,7 @@ We have implemented a new library (Stevan: Which library? Link?) which can be us
 - it makes good use of the new SQLite WAL mode and minimizes expensive fsync.
 - our library can have further use cases, like easy use of libraries which need OS bound threads.
 
-In addition we have adopted our implementation in persistent (Stevan: Link?) and we have thoroughly tested it with quickcheck-state-machine (more on this in another blog post), even with tens of concurrent threads (we have very recently implemented this functionality in [quickcheck-state-machine](https://github.com/advancedtelematic/quickcheck-state-machine/pull/324)).
+In addition we have adopted our implementation in persistent (https://github.com/kderme/persistent/tree/write-thread-sqlite/persistent-sqlite) and we have thoroughly tested it with quickcheck-state-machine (more on this in another blog post), even with tens of concurrent threads (we have very recently implemented this functionality in [quickcheck-state-machine](https://github.com/advancedtelematic/quickcheck-state-machine/pull/324)).
 
 
 # References
