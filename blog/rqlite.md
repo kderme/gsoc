@@ -135,7 +135,8 @@ AnnotateC "PostconditionFailed \"PredicateC (Resp {getResp = Right (Got [])} :/=
 ```
 <br/>
 and indeed we can see that we Got an empty list, while we would have expected a list with a single Perosn which was just
-added (aka stale read). Let's see what happens here
+added (aka stale read). Let's see what happens here:
+
 - Node 0 is created, listening on Port 4001
 - Node 1 is created, listening on Port 4003
 - Node listening on 1, gets a post request, to insert a new Person. Since this node is not a leader, this request is 
