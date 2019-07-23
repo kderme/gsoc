@@ -130,6 +130,7 @@ I do the cleanup. It works, but if there is some unexpected exceptions, the reso
       <center>This is an image</center>
 In this image we see a failing test, with the comment
 <br/>
+
 ```
 AnnotateC "PostconditionFailed \"PredicateC (Resp {getResp = Right (Got [])} :/= Resp {getResp = Right (Got [Person {name = \\\"Curry\\\", age = 37}])})\"" BotC
 ```
