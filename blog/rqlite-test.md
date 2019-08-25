@@ -2,9 +2,11 @@ In a previous blog we explain how we built a client for rqlite and some technica
 quickcheck-state-machine tests for it. Here we will discuss about injecting errors and testing the consistency of rqlite.
 We believe our approach can be used to test other distributed systems.
 
+## Using Docker
+
 The first think we did was change our tests from using processes, to using docker. The docker support of rqlite is 
 still very early, but it was good enough for us. Docker gives a more flexible way to manipulate the networks and to 
-create parittions, than simple processes.
+create parittions and it is easier to run from ci.
 
 The Commands dsl is this one:
 
@@ -136,4 +138,49 @@ readProcess "docker"
         ] ""
 ```
 which basically sends a SIGSTOP and SIGCONT to all processes of the given container.
-        
+
+
+## Consistency
+
+RQLite is a distributed database and is based on the go implementation of the raft protocol. Raft is a distributed
+consistency protocol, with similar fault-tolerant guarantees to Paxos. The raft protocol ensures that a replicated 
+state-machine is kept between different nodes, which for RQLite is a database. When a number of nodes are connected
+an election is triggered and a leader is elected. When a request which changes the state reaches the leader, he has to
+pass it through a quorum of nodes, before appending it to the log entry. Old entries are never changed.
+The leader is also responsible to inform all followers for any changes and also send regular heartbeats to them. 
+If a follower has not heard from the leader in a specific duration, he changes his state to candidate and starts 
+an election.
+
+The thing gets interesting when we start the discussion about reads. Only the leader should reply to reads.
+Otherwise, it is very easy to get stale reads (we will discuss below abow tests that revealed this), so any consistency
+is sacrificed.
+Ideally we want reads to be fast, without having to access a quorum of nodes. Most raft-based systems provide different consistency levels and seems to be willing to sacrifice consistency for speed (in the default case). Before getting into details about the implementations, let's see what the protocol suggests. Raft actually allows multiple concurrent leaders. This can happen if for example a leader is cutoff from the network and other nodes elect a new leader. Older leaders should
+not respond. But how does a leader knows there is another leader without trying to contact other nodes? The raft paper states:
+```
+a leader must check whether it has been deposed before processing a read-only request (its information may be stale if a more recent leader has been elected). Raft handles this by having the leader exchange heartbeat messages with a majority of the cluster before responding to read-only requests. Alternatively, the leader could rely on the heartbeat mechanism to provide a form of lease [9], but this would rely on timing for safety (it assumes bounded clock skew).
+```
+So a leader should either contact a quorum or if the mechanism of leader lease is used, it should check if its lease time
+has expired.
+
+All raft based implementations provide different levels of consistency for read operations: 
+- Any node, leader or not, answers to read operations.
+- The leader answers if his lease time has not expired. This depends on synchronized clocks.
+- a stronger version where reads also must pass through a quorum of nodes, as a no-op operation.
+
+Consul calls them stale/default/consistent. RQLite calls them none/weak/strong (weak is the default). Etcd, which actually depends on a  different implementations of raft, seems to be willig to sacrifice linearizability for sequential 
+consistency (q-s-m does not test for sequential consistency). It still provides an option, not suggested to be used,
+https://github.com/etcd-io/etcd/pull/866, which ensures linearizability by passing read operations from a quorum.
+
+Timeout mechanism are used to ensure linearizability in the default modes for RQLite and Consul. First The leader lease time has to be bigger than 
+
+
+
+
+
+
+There are many other 
+
+check if lease time has expired https://github.com/hashicorp/raft/blob/635796e5097fbfdb80f6f2d92abe66739a957380/raft.go
+clock is monotonic https://golang.org/pkg/time/
+
+provides 3 level of consistency: None, Weak, Strong.
