@@ -167,12 +167,16 @@ All raft based implementations provide different levels of consistency for read 
 - The leader answers if his lease time has not expired. This depends on synchronized clocks.
 - a stronger version where reads also must pass through a quorum of nodes, as a no-op operation.
 
-Consul calls them stale/default/consistent. RQLite calls them none/weak/strong (weak is the default). Etcd, which actually depends on a  different implementations of raft, seems to be willig to sacrifice linearizability for sequential 
+Consul calls them stale/default/consistent. RQLite calls them none/weak/strong (weak is the default). Etcd, which actually depends on a  different implement      ations of raft, seems to be willig to sacrifice linearizability for sequential 
 consistency (q-s-m does not test for sequential consistency). It still provides an option, not suggested to be used,
 https://github.com/etcd-io/etcd/pull/866, which ensures linearizability by passing read operations from a quorum.
 
-Timeout mechanism are used to ensure linearizability in the default modes for RQLite and Consul. First The leader lease time has to be bigger than 
-
+Timeout mechanism are used to ensure linearizability in the default modes for RQLite and Consul. The leader lease time has to be smaller than the heartbat timeout of followers. The raft implementations checks upon startup that within the same node, the leader lease timeout is smaller than the leader lease timoeut, so it ensures this property within one node. RQLite keeps the leader lease time fixed (500ms) and does not provide any option to change it. This ensures the wanted property across different nodes. Consul had tried to fix timeout related problems in the past, by reducing the leader lease time https://github.com/hashicorp/raft/commit/73bd785f4505fb27b97b253f37d40e4922d34227.
+This wanted property ensures that a lease timeout expires before an elections starts on other nodes, even if the leader is partitioned and no concurrent leaders can occur. However this is easy to overcome. GC pauses or (as we did on
+our tests) pausing and unausing the leader with SIGSTOP/SIGSTOP signals can create 2 concurrent leaders, since a paused node cannot hear of a expired timeout. In order to overcome even this case, the leader upon each get request compares the current time with the last time he heard from each follower. If enough leases
+have expired, it responds with a Serivce Unavailable. The logic above is implemented in the checkLeaderLease function of
+raft https://github.com/hashicorp/raft/blob/635796e5097fbfdb80f6f2d92abe66739a957380/raft.go#L853. The function time.now.Sub
+finds the difference of times based on a monotonic clock. Monotonic clocks are better at checking the difference of two events than normal clocks and we found it very hard to mock them.
 
 
 
