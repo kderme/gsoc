@@ -1,3 +1,6 @@
+Here I keep a log of all my work for my gsoc-2019 project https://summerofcode.withgoogle.com/projects/#5114362358923264
+with Haskell.org. I also use this file as the final report to Haskell.org.
+
 I wrote many q-s-m tests for persistent
 https://github.com/kderme/gsoc
 I used this test suite to find bugs or missing feautures  q-s-m itself, also some bugs in persistent
@@ -20,6 +23,7 @@ which I plan to publish at hackage. The implementation is adopted in persistent.
 https://github.com/kderme/persistent
 I have written a pretty big blog post (not posted yet) which explains what I did and other relate intersting stuff:
 https://github.com/kderme/gsoc/blob/master/blog/sqlite.pdf
+A subset of my work above is merged as a q-s-m test https://github.com/advancedtelematic/quickcheck-state-machine/pull/349
 
 I fixed some q-s-m bugs. We found that some of them had affected many users in the past.
 This bug was very subtle and I had spent many days hunting it down:
@@ -43,7 +47,7 @@ Finally a small release issue I found while using this library
 https://github.com/tweag/pthread/pull/4
 
 
-Added a new q-s-m example, called Overflow, which fails only when there are >3 threads https://github.com/advancedtelematic/quickcheck-state-machine/pull/325
+I added a new q-s-m example, called Overflow, which fails only when there are >3 threads https://github.com/advancedtelematic/quickcheck-state-machine/pull/325
 
 Discussed many issues with Stevan:
 
@@ -56,8 +60,23 @@ With many small prs tried to fix existing tests, which often made CI fail (discu
 
 One pr (https://github.com/advancedtelematic/quickcheck-state-machine/pull/339) which fixes the labeling of q-s-m (which was a bit verbose) and replaces the default output.Related pr which also improved the output of tests https://github.com/advancedtelematic/quickcheck-state-machine/pull/341. Other related issues and work in progress: https://github.com/advancedtelematic/quickcheck-state-machine/issues/342, https://github.com/advancedtelematic/quickcheck-state-machine/issues/340
 
-With Stevan we decided to test rqlite, a distributed database. To make this possible, I wrote a Haskell client for rqlite and published it on Hackage (http://hackage.haskell.org/package/hs-rqlite). This is the first package I publish. Using this client I wrote a pretty big test https://github.com/advancedtelematic/quickcheck-state-machine/tree/rqlite, which I believe will soon be merged at q-s-m. In this test I use the `process` package to dynamically spawn unix processes during tests, which run rqlite servers and also kill them and restart them. I am also currently working on a tool which can create network partitions https://github.com/worstcase/blockade and trying to integrate it with my tests. About these tests and the client, I am writing a new blog-post https://github.com/kderme/gsoc/blob/master/blog/rqlite.md.
+With Stevan we decided to test rqlite, a distributed database. To make this possible, I wrote a Haskell client for rqlite and published it on Hackage (http://hackage.haskell.org/package/hs-rqlite). Using this client I wrote a pretty big test https://github.com/advancedtelematic/quickcheck-state-machine/tree/RQLite, which I believe will soon be merged at q-s-m. 
+I wrote a blog post about writing tests for rqlite https://github.com/kderme/gsoc/blob/master/blog/rqlite.png 
+(writing a rqlite client, using unix-processes then moving to docker, injecting errors like network partitions etc) and another blog https://github.com/kderme/gsoc/blob/master/blog/rqlite-test.md about the tests themselves and the consistency
+levels of rqlite. 
 
-I recently added
-Finally I'm working on a issue related to doing proper clean-up after each q-s-m test finishes https://github.com/advancedtelematic/quickcheck-state-machine/issues/335. I believe this issue sometimes makes q-s-m hard to use. My solution is for now integrated with my rqlite test (maybe I'll do a different pr though).
+I recently added a new function in q-s-m, which takes care of cleaning up the state after the end of each test.
+The pr https://github.com/advancedtelematic/quickcheck-state-machine/pull/346 also has a a new q-s-m example with many 
+meta-properties, that is it tests q-s-m itself. I also wrote a blog post about it https://github.com/kderme/gsoc/blob/master/blog/cleanup.md which explains how cleamup is done, why it's necessary and why its
+implementaion is interesting for the parallel case of q-s-m. 
 
+I fixed a bug in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/pull/348 which made some of my tests
+fail. I also wrote another q-s-m test, which fails without the fix (same pr).
+
+Finally I wrote a meta-blog https://github.com/kderme/gsoc/blob/master/blog/meta-blog.md which introduces all my blogs 
+(which I have mentioned above) in a less descriptive way. So it's not a report, like this file, but is intented for someone
+outside Haskell.org who would like to read about my work.
+
+Feedback for my work and my blogs is bery welcome
+Thanks
+Kostas Dermentzis <k.dermenz@gmail.com>
