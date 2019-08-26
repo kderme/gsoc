@@ -231,4 +231,4 @@ readProcess "docker"
 which basically sends a SIGSTOP and SIGCONT to all processes of the given container.
 
 ## Summary
-In this blog we discussed technical difficulties of testing a distributed databases and what needed to be done (writing a client, injecting errors, pausing nodes). In a future [blog](https://github.com/kderme/gsoc/edit/master/blog/rqlite-test.md) we will discuss about testing the consistency of rlite, using the existing functionality.
+In this blog we discussed technical difficulties of testing a distributed databases and what needed to be done (writing a client, injecting errors, pausing nodes). In a future [blog](https://github.com/kderme/gsoc/master/blog/rqlite-test.md) we will discuss about testing the consistency of rlite, using the existing functionality.
