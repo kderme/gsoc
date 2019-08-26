@@ -9,7 +9,7 @@ As a first step I had to write a Haskell client for rqlite
 since it is actually written in Go language. I soon realised that the protocol rqlite uses is not well documented,
 so writing a client would not be very easy. My first implementation had many bugs and the tests crashed very often. 
 Fixing all these bugs that property-based testing discovered lead to a pretty robust client, which is now published on 
-hackage (http://hackage.haskell.org/package/hs-rqlite).
+[hackage](http://hackage.haskell.org/package/hs-rqlite).
 
 The client uses http to communicate with the nodes and the nodes communicate through tcp with each other.
 There are many things that can go wrong in a distributed system and properly handling all kind of errors that can appear is
@@ -39,7 +39,7 @@ but the `HTTP` package reifies them to `ConnError`, which is wrapped in `StreamE
 but since this is a distributed db, we decided that this error deserves its own constructor `HttpRedirect`. Our client
 gives the option to make the redirection itself, so, in this case, this error should not appear to the user.
 - By the time we query the leader, he may no longer be the reigning leader, so he will redirect us. We set a maximum
-number of times this can happen (a bit rare though).
+number of times this can happen (a rare error).
 - It may also be that the http header which redirects us to a different location is missing (rare also).
 - We requested something that only the leader can do. However there is currently no leader to redirect us. This can happen
 when multiple nodes leave a cluster and there is no majority for a leader to be voted.
@@ -110,7 +110,7 @@ data NodeState = Running Int
                deriving (Show, Generic, ToExpr)
 ```
 We will see below how, with the adoption of docker, we can change the state to Stopped or Disconnected and back to Running. `nodes :: [(NodeRef r, Int)]`
-is a registry of all the running processes. In this [blog](https://github.com/kderme/gsoc/blob/master/blog/References.md) I write more about how q-s-m uses references, like this reference to the unix-process. At the end of each test, it is important that these processes are stopped. Doing proper cleanup is discussed in this [blog] (https://github.com/kderme/gsoc/blob/master/blog/cleanup.md).
+is a registry of all the running processes. In this [blog](https://github.com/kderme/gsoc/blob/master/blog/References.md) I write more about how q-s-m uses references, like this reference to the unix-process. At the end of each test, it is important that these processes are stopped. Doing proper cleanup is discussed in this [blog](https://github.com/kderme/gsoc/blob/master/blog/cleanup.md).
 
 The commands which transition the Model are:
 ``` haskell
@@ -231,4 +231,4 @@ readProcess "docker"
 which basically sends a SIGSTOP and SIGCONT to all processes of the given container.
 
 ## Summary
-In this blog we discussed technical difficulties of testing a distributed databases and what needed to be done (writing a client, injecting errors, pausing nodes). In a future [blog](https://github.com/kderme/gsoc/master/blog/rqlite-test.md) we will discuss about testing the consistency of rlite, using the existing functionality.
+In this blog we discussed technical difficulties of testing a distributed databases and what needed to be done (writing a client, injecting errors, pausing nodes). In a future [blog](https://github.com/kderme/gsoc/blob/master/blog/rqlite-test.md) we will discuss about testing the consistency of rlite, using the existing functionality.
