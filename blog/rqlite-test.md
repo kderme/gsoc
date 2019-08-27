@@ -84,38 +84,41 @@ read from the old leader.
 The election was indeed trigered, but not the stale read. The old leader realized it's not the leader anymore and redirected to the new leader instead of responding with old data. We also tried to split the commands in different thread/clients, but again the stale read didn't appear.
 
 So killing and respawning the node was not enough. We then added commands to partition nodes from the network (for this we migrated to docker) test cases like this appeared:
-spawn 3 nodes
-partition the leader
-wait for election from the other 2 nodes
-write to the new leader
-read from old leader
+
+spawn 3 nodes <br>
+partition the leader <br>
+wait for election from the other 2 nodes <br>
+write to the new leader <br>
+read from old leader <br>
 
 What happened was a `NotLeader` error from the old leader. In this case the timeouts ensure that the leader lease time expires before the other nodes decide to elect a new leader.
 
 So we thought that maybe we could try to trigger the election a bit faster. We tested test scenarios like this:
-spawn 3 nodes
-partition a follower
-wait for its heartbeat timeout to end
-partition the leader
-reconnect the follower (he now straight away triggers an election)
-wait for election from the other 2 nodes
-write to the new leader
-read from old leader
+
+spawn 3 nodes <br>
+partition a follower <br>
+wait for its heartbeat timeout to end <br>
+partition the leader <br>
+reconnect the follower (he now straight away triggers an election) <br>
+wait for election from the other 2 nodes <br>
+write to the new leader <br>
+read from old leader <br>
 
 Unfortunately the election from the two nodes always takes more than 500ms. We are not quite sure why this happens, but
 no option we tried made the election faster. The old leader didn't respond with the stale read, but instead returned NotLeader.
 
 Since, the leader lease timeouts, we thought that it would help if we actually pause the old leader, so that it does not hear any timeout. So we added pause and resume on our tests:
-spawn 3 nodes
-partition a follower
-wait for its heartbeat timeout to end
-partition the leader
-pause the leader
-reconnect the follower (he now straight away triggers an election)
-wait for election from the other 2 nodes
-write to the new leader
-continue the old leader
-read from old leader
+
+spawn 3 nodes <br>
+partition a follower <br>
+wait for its heartbeat timeout to end <br>
+partition the leader <br>
+pause the leader <br>
+reconnect the follower (he now straight away triggers an election) <br>
+wait for election from the other 2 nodes <br>
+write to the new leader <br>
+continue the old leader <br>
+read from old leader <br>
 
 Unfortunately the old leader still returns NotLeader. This happens because, as we mentioned, even if the leader is paused for some time, when requested he checks the current time and compares it with the time of last interactions. The time is given form a monotonic clock. We figured out that the only way to trigger this stale read is to actually mock this function https://golang.org/pkg/time/ of go, into returning a skewed time.
 
