@@ -57,7 +57,7 @@ With many small prs I tried to fix existing tests, which often made CI fail (dis
 
 One pr (https://github.com/advancedtelematic/quickcheck-state-machine/pull/339) which fixes the labeling of q-s-m (which was a bit verbose) and replaces the default output, without any breaking api changes. Related pr which also improved the output of tests https://github.com/advancedtelematic/quickcheck-state-machine/pull/341. Other related issues and work in progress: https://github.com/advancedtelematic/quickcheck-state-machine/issues/342, https://github.com/advancedtelematic/quickcheck-state-machine/issues/340
 
-With Stevan we decided to test rqlite, a distributed database. To make this possible, I wrote a Haskell client for rqlite and published it on Hackage (http://hackage.haskell.org/package/hs-rqlite). Using this client I wrote a pretty big test https://github.com/advancedtelematic/quickcheck-state-machine/tree/RQLite, which I believe will soon be merged at q-s-m. 
+With Stevan we decided to test rqlite, a distributed database. To make this possible, I wrote a Haskell client for rqlite and published it on Hackage (http://hackage.haskell.org/package/hs-rqlite). Using this client I wrote a pretty big test https://github.com/advancedtelematic/quickcheck-state-machine/pull/350, which I believe will soon be merged at q-s-m. 
 I wrote a blog post about writing tests for rqlite https://github.com/kderme/gsoc/blob/master/blog/rqlite.png 
 (writing a rqlite client, using unix-processes then moving to docker, injecting errors like network partitions etc) and another blog https://github.com/kderme/gsoc/blob/master/blog/rqlite-test.md about the tests themselves and the consistency
 levels of rqlite. 
