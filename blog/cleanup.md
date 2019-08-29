@@ -75,7 +75,7 @@ operationsPath = go []
 ```
 
 After all, in all our examples, resources, like unix processes, that
-need cleanup are kept in containers with foldable structure. the order of insertion not that important,
-even if the unix processes are created in different order, 
-the result will be the same structure. In a later pr, I added checks that enforce a specific number of resources each 
+need cleanup are kept in containers with foldable structure, the order of insertion is not that important.
+Even if the unix processes are created in different order, 
+the result will be the same structure. In a later [pr](https://github.com/advancedtelematic/quickcheck-state-machine/pull/348), I added checks that enforce a specific number of resources each 
 commands creates, which helps even more, this assumption. 
