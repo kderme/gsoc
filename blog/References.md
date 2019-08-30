@@ -1,6 +1,6 @@
 # References in quickcheck-state-machine
 
-In this blog post we will discuss how references work in quickcheck-state-machine and some related bugs I fixed during my
+In this blog we will discuss how references work in quickcheck-state-machine and some related bugs I fixed during my
 GSoC project. This blog discusses internals of q-s-m and although having used q-s-m is not necessary it may help in 
 understanding the content. We will follow the example in the [README](https://github.com/advancedtelematic/quickcheck-state-machine/blob/master/README.md), so familiarity with this helps.
 [Here](http://www.well-typed.com/blog/2019/01/qsm-in-depth/) there is a more advanced example.
@@ -59,7 +59,7 @@ data Concrete a where
 Concrete is a simple wrapper of the real a. As you may have noticed we say that the user defined
 cmd and resp contain references (Symbolic or Concrete), that is they have the structure of a container. Let's see the constraint that q-s-m requires for cmd and resp:
 - For generation of commands, q-s-m requires a Foldable instance of Responses, so that it can extract the list of 
-Variables (like the [ Var 0 ] we saw above. The Symbolic responses are created by a user defined function:
+Variables (like the [ Var 0 ] we saw above). The Symbolic responses are created by a user defined function:
 ``` haskell
 mock :: model Symbolic -> cmd Symbolic -> GenSym (resp Symbolic)
 ```
@@ -70,15 +70,9 @@ References this time. By assuming that the extracted References are on the same 
 environment: that is a simple `Data.Map` of how symbolic vars map to Concrete values. This Environment helps reifying
 cmd Symbolic to Concrete. To achieve this, execution traverse through the References of the Symbolic Commands and 
 map each Symbolic to Concrete, until maybe one Symbolic is not found and then traversing stops. So, in addition a Traversable
-instance of cmd is necessary. 
+instance of cmd is necessary.
 
-At this point we have discussed how most ingredients are created:
-- cmd Symbolid: these are created by random generation.
-- cmd Concrete: reified from cmd Symbolic, given the execution Environment.
-- resp Symbolic: by the mock function.
-- resp Concrete: returned by the semantics.
-
-For shrinking the user can provide a shrinker for a single Commands, but q-s-m also tries to shrink the list of Commands, by discarding
+- For shrinking the user can provide a shrinker for a single Commands, but q-s-m also tries to shrink the list of Commands, by discarding
 whole commands. This is tricky though, because we must make sure that the references of the discarded cmd are not used.
 That's why q-s-m tries to validate each shrunk list of Commands, before actually executing it. In this example:
 ``` haskell
@@ -112,7 +106,13 @@ Commands
 This traversal requires a Traversable instance for cmd, which as we mentioned is already needed for execution,
 so this does not add a new constraint overall.
 
-## The parallel case and the bugs.
+At this point we have discussed how most ingredients are created:
+- cmd Symbolid: these are created by random generation.
+- cmd Concrete: reified from cmd Symbolic, given the execution Environment.
+- resp Symbolic: by the mock function.
+- resp Concrete: returned by the semantics.
+
+## The parallel case and the first bug.
 In the previous part we discussed how q-s-m uses variables for the sequential case. q-s-m provides in addition the
 possibility to test commands in parallel. We will discuss here about how shrinking works in the parallel case, following
 an example and the bug I found and fixed.
@@ -162,6 +162,7 @@ and the environment will acquire a remap 0 -> 1. After that, both proj1 and proj
 The bug was in the way the model was advanced for the next Pair. It actually used a the Command before being remmaped, 
 so it referenced a Variable which was never created.
 
+
 ## The second bug
 
 The second bug was an open issue in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/issues/302 and it apppeared
@@ -171,7 +172,7 @@ threads, to using a user specified amount of threads. It was basically a general
 pr I was trying to add a sanity test, which tested the equivalence of the old implementation with the new one for n=2.
 The tests kept failing and it was only when this bug was fixed that the tests passed. More details about this can be found [here](https://github.com/advancedtelematic/quickcheck-state-machine/pull/294#discussion_r272949230).
 
-This bug did not have to do with shrinking, but with generation and execution.
+This bug did not have to do with shrinking like the previous one, but with generation and execution.
 A good question is, what is a valid parallel program, that we should allow to be executed? There is an
 inherent uncertainty when running parallel programs: we can't actually know how the model advances when two streams of
 commands are executed in parallel. So, during generation, q-s-m takes sequential commands and tests all permutation of 
