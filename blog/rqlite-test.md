@@ -73,13 +73,14 @@ As we discussed above, with proper injected error, the weak consistency of rqlit
 First and foremost, in order to trigger this stale read it is important at some point, an election is triggered on a stable network (where a leader already exists) and a new leader is elected. However this should happen without killing the existing leader (as the existing leader has to be alive to give us the stale read). 
 
 The first thing we tried was to exploit an issue with the [raft implementation](https://github.com/hashicorp/consul/issues/1674) (which should actually still be an open issue). According to this issue, killing and restarting a node can cause an election on a stable network. So we updated our test, which at the time was using unix-processes, with two commands: kill and respawn. When these commands were executed on the model, it changed its state to unavailable. We also added a precondition, to never query unavailable nodes, as this would result in timeout. Tests cases like this appeared:
-spawn 3 nodes
-wait to elect a leader
-kill 1 node
-respawn the node
-wait election to finish
-write to the new leader (the respawned node)
-read from the old leader.
+
+spawn 3 nodes <br>
+wait to elect a leader <br>
+kill 1 node <br>
+respawn the node <br>
+wait election to finish <br>
+write to the new leader (the respawned node) <br>
+read from the old leader. <br>
 
 The election was indeed trigered, but not the stale read. The old leader realized it's not the leader anymore and redirected to the new leader instead of responding with old data. We also tried to split the commands in different thread/clients, but again the stale read didn't appear.
 
@@ -104,8 +105,7 @@ wait for election from the other 2 nodes <br>
 write to the new leader <br>
 read from old leader <br>
 
-Unfortunately the election from the two nodes always takes more than 500ms. We are not quite sure why this happens, but
-no option we tried made the election faster. The old leader didn't respond with the stale read, but instead returned NotLeader.
+Unfortunately the election from the two nodes always takes more than 500ms. This is an intentional delay, caused to make sure that the leader lease time has expired before any other leader is elected. As a result, the old leader didn't respond with the stale read, but instead returned NotLeader.
 
 Since, the leader lease timeouts, we thought that it would help if we actually pause the old leader, so that it does not hear any timeout. So we added pause and resume on our tests:
 
@@ -128,7 +128,7 @@ Another library called [libfaketime](https://github.com/wolfcw/libfaketime) can 
 https://stackoverflow.com/questions/29556879/is-it-possible-change-date-in-docker-container) explains how to use it through docker. However as people point out, this is not supposed to work for statically linked libraries, like go lang. Using a custom compiled version of rqlite through docker is something we're trying next. It seems though this is the final piece remaining to triggering the stale read.
 
 ## Summary
-In this blog we discussed about the consistency levels of rqlite and how we used q-s-m tests to hunt down inconsistencies. We thing we narrowd down the stale read of the weak consistency as much as possible to mocking a single system-call. If you have any suggestions on how to mock this function https://golang.org/pkg/time/, for an system running on docker, I would be interested to know <k.dermenz@gmail.com>.
+In this blog we discussed about the consistency levels of rqlite and how we used q-s-m tests to hunt down inconsistencies. We think we narrowd down the stale read of the weak consistency as much as possible to mocking a single system-call. If you have any suggestions on how to mock this function https://golang.org/pkg/time/, for an system running on docker, I would be interested to know <k.dermenz@gmail.com>.
 
 
 ## References
