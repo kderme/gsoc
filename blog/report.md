@@ -4,24 +4,24 @@ Here I keep a log of all my work for my gsoc-2019 project https://summerofcode.w
 
 I wrote many q-s-m tests for persistent
 https://github.com/kderme/gsoc
-I used this test suite to find bugs or missing feautures in q-s-m itself and in persistent <br/>
+I used this test suite to find bugs or missing features in q-s-m itself and in persistent <br/>
 https://github.com/yesodweb/persistent/pull/915 (merged and released) <br/>
 https://github.com/yesodweb/persistent/pull/922 (merged and released) <br/>
 https://github.com/yesodweb/persistent/pull/945 (merged and released) <br/>
 https://github.com/yesodweb/persistent/issues/948 (issue reported)
 
-I generalized paralellism in q-s-m to an arbitrary number of threads (was limited to 2)
+I generalized parallelism in q-s-m to an arbitrary number of threads (was limited to 2)
 https://github.com/advancedtelematic/quickcheck-state-machine/pull/324
 The same pr also introduced many meta-properties for the new shrinker of q-s-m.
-In the same pr I gave the possibility to draw automatically plots of failing tests with graphviz-dot, like portayed here 
+In the same pr I gave the possibility to draw automatically plots of failing tests with graphviz-dot, like portrayed here 
 https://github.com/advancedtelematic/quickcheck-state-machine/issues/316#issuecomment-504011309.
 At the same link I had a discussions with Stevan, about linearizability and how we can extend it.
 
-I have implemented a new way to interract with SQlite from multiple threads in Haskell. In order to implement this I wrote a new library
+I have implemented a new way to interact with SQLite from multiple threads in Haskell. In order to implement this I wrote a new library
 https://github.com/kderme/async-queue
 which I plan to publish at hackage. The implementation is adopted in persistent. The fork can be found here 
 https://github.com/kderme/persistent.
-I have written a pretty big blog post which explains what I did and other relate intersting stuff:
+I have written a pretty big blog post which explains what I did and other related interesting stuff:
 https://github.com/kderme/gsoc/blob/master/blog/blog-sqlite.md
 A subset of this work above and the persistent test is merged as a q-s-m test https://github.com/advancedtelematic/quickcheck-state-machine/pull/349.
 
@@ -36,11 +36,11 @@ The bug was also reported in the past https://github.com/advancedtelematic/quick
 and it is now fixed.
 https://github.com/advancedtelematic/quickcheck-state-machine/pull/319 (Stevan did this pr and I reviewed it).
 
-I also came up with a shrining optimization which can be used pretty well in q-s-m and I believe it can significantly reduce shrinking time
+I also came up with a shrinking optimization which can be used pretty well in q-s-m and I believe it can significantly reduce shrinking time
 which is a big bottleneck. I explain it in many details here
 https://github.com/advancedtelematic/quickcheck-state-machine/issues/321
 I have also implemented it in this branch https://github.com/advancedtelematic/quickcheck-state-machine/tree/quick-shrink-monadic
-It's a bit experimented, so I haven't opened a pr yet. The implementation touched many internal structures of QuickCheck which are not meant to be used (although fotunately QuickCheck exports them, so implementing this idea in q-s-m does not require any changes from QuickCheck). However, since the idea could have many other use cases (not only related to q-s-m) I also asked the opinion from people of QuickCheck:
+It's a bit experimented, so I haven't opened a pr yet. The implementation touched many internal structures of QuickCheck which are not meant to be used (although fortunately QuickCheck exports them, so implementing this idea in q-s-m does not require any changes from QuickCheck). However, since the idea could have many other use cases (not only related to q-s-m) I also asked the opinion from people of QuickCheck:
 https://github.com/nick8325/quickcheck/issues/263
 
 A small release issue I found while using this library
@@ -64,14 +64,14 @@ levels of rqlite.
 
 I recently added a new function in q-s-m, which takes care of cleaning up the state after the end of each test.
 The pr https://github.com/advancedtelematic/quickcheck-state-machine/pull/346 also has a a new q-s-m example with many 
-meta-properties, that is it tests q-s-m itself. An extensive iscussion about it can be found here https://github.com/advancedtelematic/quickcheck-state-machine/issues/335. I also wrote a blog post about it https://github.com/kderme/gsoc/blob/master/blog/cleanup.md which explains how cleamup is done, why it's necessary and why its
-implementaion is interesting for the parallel case of q-s-m. 
+meta-properties, that is it tests q-s-m itself. An extensive discussion about it can be found here https://github.com/advancedtelematic/quickcheck-state-machine/issues/335. I also wrote a blog post about it https://github.com/kderme/gsoc/blob/master/blog/cleanup.md which explains how cleanup is done, why it's necessary and why its
+implementation is interesting for the parallel case of q-s-m. 
 
 I fixed a bug in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/pull/348 which made some of my tests
 fail. I also wrote another q-s-m test, which fails without the fix (same pr). In this blog https://github.com/kderme/gsoc/blob/master/blog/References.md I discuss about some internals of q-s-m and some of my bug fixes in q-s-m, included this one.
 
 I wrote a meta-blog https://github.com/kderme/gsoc/blob/master/blog/meta-blog.md which introduces all my blogs 
-(which I have mentioned above) in a less descriptive way. So it's not a report, like this file, but is intented for someone
+(which I have mentioned above) in a less descriptive way. So it's not a report, like this file, but is intended for someone
 outside Haskell.org who would like to read about my work.
 
 Feedback for my work and my blogs is very welcome <br/>

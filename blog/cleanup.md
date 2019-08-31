@@ -4,7 +4,7 @@
 In a previous [blog](https://github.com/kderme/gsoc/edit/master/blog/rqlite.md), 
 we discussed about a q-s-m test for rqlite, which spawns and keeps a registry of new unix-processes.
 It is also important to kill all remaining processes at the end of the test. This is an expected and more general issue, 
-since we test monadic code and not pure (which is what QuickTest is usually used for) and it 
+since we test monadic code and not pure (which is what QuickCheck is usually used for) and it 
 [affects](https://github.com/advancedtelematic/quickcheck-state-machine/issues/335)
 many users of q-s-m, usually resulting in ad-hoc solutions. 
 We recently managed to provide an adequate solution for this issue in this 
@@ -19,14 +19,14 @@ I made q-s-m not shrink when async exceptions are encountered. This is the corre
 indicate that the user wants to end the tests and not that a test failed. However, even in this case some cleanup must be 
 performed, before exiting. So our handlers must run with async-exceptions masked.
 - Test results are non-deterministic, like in the parallel case, so tests are run multiple times each looking for race 
-conditions. q-s-m provides this functionality through the runParalelNTimes command. However, it was impossible for users
+conditions. q-s-m provides this functionality through the runParallelNTimes command. However, it was impossible for users
 to cleanup the state after each execution, which made these functions impossible to use for many cases.
-- Cleanup can be used to make tests faster. For example if each test starts a db at the begining, we may want to just start 
+- Cleanup can be used to make tests faster. For example if each test starts a db at the beginning, we may want to just start 
 the db before the first test and use the cleanup to clean any entries of the db. By doing so, time is not spent to stop and 
 restart the db each time. In some of our tests. we used this to make sure that each tests starts from a specific topology, 
 without the need to kill all nodes and restart them each time, which takes a lot of time.
 
-After some discussions, we ended up that the cleanup shoud be a user defined function `Model Concrete -> IO ()`. This would 
+After some discussions, we ended up that the cleanup should be a user defined function `Model Concrete -> IO ()`. This would 
 be the easiest for the user, since he is familiar with what the Model is. But where exactly should this cleanup be done and 
 which is the correct model (the model keeps transitioning during the execution). Cleanup is getting even more hard in the 
 parallel case, where parallelism creates a non-deterministic Model, that is we don't know what the final model is. 

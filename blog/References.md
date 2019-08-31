@@ -21,7 +21,7 @@ shrinker are implied by the `Arbitrary` instance of [Int]. In the case of q-s-m,
 used is a list of Commands, the exact type of which is specified by the user. With the help of `Test.QuickCheck.Monadic`, 
 the `a -> prop` part can test monadic code and q-s-m uses this to test the commands against a real system. 
 It is important though that no random generation is done during the execution part, using functions like `pick`, or 
-else shrinking and repetition of failed test is impossible. These are feautures q-s-m does not want to sacrifice. But this
+else shrinking and repetition of failed test is impossible. These are features q-s-m does not want to sacrifice. But this
 creates a paradox: assume we test a db and the db gives ids to each new entry. How can we have a command which indicates that
 this entry must be updated before we have even inserted the entry? Or if we test a filesystem, how can we have a command to
 close a handle, before this handle is even created. Or if we want to test how `IORef` works, like in the example of
@@ -107,7 +107,7 @@ This traversal requires a Traversable instance for cmd, which as we mentioned is
 so this does not add a new constraint overall.
 
 At this point we have discussed how most ingredients are created:
-- cmd Symbolid: these are created by random generation.
+- cmd Symbolic: these are created by random generation.
 - cmd Concrete: reified from cmd Symbolic, given the execution Environment.
 - resp Symbolic: by the mock function.
 - resp Concrete: returned by the semantics.
@@ -165,7 +165,7 @@ so it referenced a Variable which was never created.
 
 ## The second bug
 
-The second bug was an open issue in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/issues/302 and it apppeared
+The second bug was an open issue in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/issues/302 and it appeared
 from time to time in ci and threw a strange error which confused users. It was fixed with my [pr](https://github.com/advancedtelematic/quickcheck-state-machine/pull/315). This bug also affected me while 
 trying to generalize parallelism in q-s-m: In this [pr](https://github.com/advancedtelematic/quickcheck-state-machine/pull/324) I extended parallelism from using strictly 2
 threads, to using a user specified amount of threads. It was basically a generalization from using a Pair, to using a list. Before merging this
@@ -178,9 +178,9 @@ inherent uncertainty when running parallel programs: we can't actually know how 
 commands are executed in parallel. So, during generation, q-s-m takes sequential commands and tests all permutation of 
 the commands, to see if the preconditions of the user are still respected. It is also important that commands do not use 
 references of other commands that are executed in parallel. Even though we don't know how the model advances, we should know
-the environment created from each stream of execution (remember the environment is just a Map from Varibles to Concrete
-elementes). The final environment is just the union of the two environment. But what if there is an uncertainty in the
-number of concrete variables created (remember in order to create the environment we have to exctract the references
+the environment created from each stream of execution (remember the environment is just a Map from Variables to Concrete
+elements). The final environment is just the union of the two environment. But what if there is an uncertainty in the
+number of concrete variables created (remember in order to create the environment we have to extract the references
 using the Foldable instance). Let's see an example where this can happen.
 
 Assume a system where we can only create references:

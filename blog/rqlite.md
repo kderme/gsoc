@@ -6,7 +6,7 @@ During my GSoC project for 2019, we decided to use property-based testing with [
 ## The client
 
 As a first step I had to write a Haskell client for rqlite 
-since it is actually written in Go language. I soon realised that the protocol rqlite uses is not well documented,
+since it is actually written in Go language. I soon realized that the protocol rqlite uses is not well documented,
 so writing a client would not be very easy. My first implementation had many bugs and the tests crashed very often. 
 Fixing all these bugs that property-based testing discovered lead to a pretty robust client, which is now published on 
 [hackage](http://hackage.haskell.org/package/hs-rqlite).
@@ -31,11 +31,11 @@ data RQliteError =
 It's interesting to see what are all the possible errors:
 - We tried to reach a host, which didn't exist. In this case the `network` package throws a `IOException`, which is
 reified as a `NodeUnreachable ..`.
-- The tcp connection was succesfully created, but an error discupted the stream of data between the hosts (for example 
+- The tcp connection was successfully created, but an error disrupted the stream of data between the hosts (for example 
 the connection was forcibly closed by the remote host). The `network` package throws `IOException` in this case,
 but the `HTTP` package reifies them to `ConnError`, which is wrapped in `StreamError`.
 - An internal error happened to the server, at the http protocol layer and the http response was not `OK`.
-- We requested from a node which is not the leader of the cluster, for something that only the leader can reply. In this case the nodes redirect us to the leader. This is technicaly just another case of an http error (with error code 3xx), 
+- We requested from a node which is not the leader of the cluster, for something that only the leader can reply. In this case the nodes redirect us to the leader. This is technically just another case of an http error (with error code 3xx), 
 but since this is a distributed db, we decided that this error deserves its own constructor `HttpRedirect`. Our client
 gives the option to make the redirection itself, so, in this case, this error should not appear to the user.
 - By the time we query the leader, he may no longer be the reigning leader, so he will redirect us. We set a maximum
@@ -45,14 +45,14 @@ number of times this can happen (a rare error).
 when multiple nodes leave a cluster and there is no majority for a leader to be voted.
 - We got a json which we cannot actually parse.
 <br/>
-Another possible error is that our SQLite query (actually rqlite is backed up by SQLite) returned an error, becasuse it 
+Another possible error is that our SQLite query (actually rqlite is backed up by SQLite) returned an error, because it 
 failed to parse or we queried a table which doesn't exist. This error is not part of `RQliteError` because it is returned as a `Left` case.
 
-The final error `UnexpectedResponse` was a very common error at the begining of the implementation. I soon realized that
+The final error `UnexpectedResponse` was a very common error at the beginning of the implementation. I soon realized that
 in order to fix it, very descriptive comments should be provide about what exactly failed to parse and what we were
 trying to do. With the feedback of testing I kept improving the parsers of the response, until there were no failures.
 
-I used Aeson for the json parsing. Initially I had tried to define suitable types for each response and derive the `FromJSON` instance. But I soon realised that since the response can take multiple forms, I had to manually write parsers:
+I used Aeson for the json parsing. Initially I had tried to define suitable types for each response and derive the `FromJSON` instance. But I soon realized that since the response can take multiple forms, I had to manually write parsers:
 
 ``` haskell
 instance FromJSON PostResult where
@@ -231,4 +231,4 @@ readProcess "docker"
 which basically sends a SIGSTOP and SIGCONT to all processes of the given container.
 
 ## Summary
-In this blog we discussed technical difficulties of testing a distributed databases and what needed to be done (writing a client, injecting errors, pausing nodes). In a future [blog](https://github.com/kderme/gsoc/blob/master/blog/rqlite-test.md) we will discuss about testing the consistency of rlite, using the existing functionality.
+In this blog we discussed technical difficulties of testing a distributed databases and what needed to be done (writing a client, injecting errors, pausing nodes). In a future [blog](https://github.com/kderme/gsoc/blob/master/blog/rqlite-test.md) we will discuss about testing the consistency of rqlite, using the existing functionality.

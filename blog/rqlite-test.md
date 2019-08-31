@@ -16,7 +16,7 @@ If a follower has not heard from the leader in a specific duration, he changes h
 an election.
 
 The thing gets interesting when we start the discussion about reads. Only the leader should reply to reads.
-Otherwise, it is very easy to get stale reads (we will discuss below abow tests that revealed this).
+Otherwise, it is very easy to get stale reads (we will discuss below about tests that revealed this).
 Ideally we want reads to be fast, without having to access a quorum of nodes. Most raft-based systems provide different consistency levels and seem to be willing to sacrifice consistency for speed (in the default case). Before getting into details about the implementations, let's see what the protocol suggests. Raft actually allows multiple concurrent leaders. This can happen if for example a leader is cutoff from the network and other nodes elect a new leader. Older leaders should
 not respond. But how does a leader knows there is another leader without trying to contact other nodes? The raft paper states:
 ```
@@ -26,7 +26,7 @@ heartbeat messages with a majority of the cluster before responding to read-only
 the leader could rely on the heartbeat mechanism to provide a form of lease [9], but this would rely on 
 timing for safety (it assumes bounded clock skew).
 ```
-So the paper allows opion: a leader should either contact a quorum or if the mechanism of leader lease is used, it should check if its lease time has expired.
+So the paper allows option: a leader should either contact a quorum or if the mechanism of leader lease is used, it should check if its lease time has expired.
 
 The raft implementations provide also different levels of consistency for read operations: 
 - Any node, leader or not, answers to read operations.
@@ -37,11 +37,11 @@ Rqlite calls them none/weak/strong (weak is the default). Consul (a different sy
 consistency (q-s-m does not test for sequential consistency). It still provides an option, not suggested to be used,
 https://github.com/etcd-io/etcd/pull/866, which ensures linearizability by passing read operations from a quorum.
 
-As the paper suggests, timeout mechanism are used to ensure linearizability in the default modes for rqlite and Consul. The important property needed is that the leader lease time has to be smaller than the heartbat timeout of followers. If this property holds no concurrent leaders can occur. The raft implementations checks upon startup that within the same node, the leader lease timeout is smaller than the heartbeat timoeut, so it ensures this property within one node. Rqlite keeps the leader lease time fixed (500ms) and does not provide any option to change it. This ensures the wanted property across different nodes. Consul had also tried to fix timeout related problems in the past, by reducing the leader lease time https://github.com/hashicorp/raft/commit/73bd785f4505fb27b97b253f37d40e4922d34227.
+As the paper suggests, timeout mechanism are used to ensure linearizability in the default modes for rqlite and Consul. The important property needed is that the leader lease time has to be smaller than the heartbeat timeout of followers. If this property holds no concurrent leaders can occur. The raft implementations checks upon startup that within the same node, the leader lease timeout is smaller than the heartbeat timeout, so it ensures this property within one node. Rqlite keeps the leader lease time fixed (500ms) and does not provide any option to change it. This ensures the wanted property across different nodes. Consul had also tried to fix timeout related problems in the past, by reducing the leader lease time https://github.com/hashicorp/raft/commit/73bd785f4505fb27b97b253f37d40e4922d34227.
 
 This wanted property ensures that a lease timeout expires before an elections starts on other nodes, even if the leader is partitioned and no concurrent leaders can occur. However this is easy to bypass. GC pauses or (as we did on
 our tests) pausing and unausing the leader with SIGSTOP/SIGSTOP signals can create 2 concurrent leaders, since a paused node cannot hear an expired timeout. In order to overcome even this case, the leader upon each get request compares the current time with the last time he heard from each follower. If enough leases
-have expired, it responds with a Serivce Unavailable. The logic above is implemented in the checkLeaderLease function of
+have expired, it responds with a Service Unavailable. The logic above is implemented in the checkLeaderLease function of
 raft https://github.com/hashicorp/raft/blob/635796e5097fbfdb80f6f2d92abe66739a957380/raft.go#L853. The function time.now.Sub
 finds the difference of times based on a monotonic clock. Monotonic clocks are better at checking the difference of two events than normal clocks and we found it very hard to mock them. So by using this case, even if there are two concurrent leaders, one leader is just a leader on paper, since his lease time has expired and he will find out on the next query. Below we will explain the above with more concrete examples.
 
@@ -56,8 +56,8 @@ In this image we see a failing test, with the comment
 AnnotateC "PostconditionFailed \"PredicateC (Resp {getResp = Right (Got [])} :/= Resp {getResp = Right (Got [Person {name = \\\"Curry\\\", age = 37}])})\"" BotC
 ```
 <br/>
-This test case, that random test disovered, shows a linearizability checker failure, beause we have a stale read:
-read returns an empty list, while we would have expected a list with a single Perosn which was just
+This test case, that random test discovered, shows a linearizability checker failure, because we have a stale read:
+read returns an empty list, while we would have expected a list with a single Person which was just
 added. Let's see what happens here:
 
 - Node 0 is created, listening on Port 4001
@@ -82,7 +82,7 @@ wait election to finish <br>
 write to the new leader (the respawned node) <br>
 read from the old leader. <br>
 
-The election was indeed trigered, but not the stale read. The old leader realized it's not the leader anymore and redirected to the new leader instead of responding with old data. We also tried to split the commands in different thread/clients, but again the stale read didn't appear.
+The election was indeed triggered, but not the stale read. The old leader realized it's not the leader anymore and redirected to the new leader instead of responding with old data. We also tried to split the commands in different thread/clients, but again the stale read didn't appear.
 
 So killing and respawning the node was not enough. We then added commands to partition nodes from the network (for this we migrated to docker) test cases like this appeared:
 
@@ -128,7 +128,7 @@ Another library called [libfaketime](https://github.com/wolfcw/libfaketime) can 
 https://stackoverflow.com/questions/29556879/is-it-possible-change-date-in-docker-container) explains how to use it through docker. However as people point out, this is not supposed to work for statically linked libraries, like go lang. Using a custom compiled version of rqlite through docker is something we're trying next. It seems though this is the final piece remaining to triggering the stale read.
 
 ## Summary
-In this blog we discussed about the consistency levels of rqlite and how we used q-s-m tests to hunt down inconsistencies. We think we narrowd down the stale read of the weak consistency as much as possible to mocking a single system-call. If you have any suggestions on how to mock this function https://golang.org/pkg/time/, for an system running on docker, I would be interested to know <k.dermenz@gmail.com>.
+In this blog we discussed about the consistency levels of rqlite and how we used q-s-m tests to hunt down inconsistencies. We think we narrowed down the stale read of the weak consistency as much as possible to mocking a single system-call. If you have any suggestions on how to mock this function https://golang.org/pkg/time/, for an system running on docker, I would be interested to know <k.dermenz@gmail.com>.
 
 
 ## References
