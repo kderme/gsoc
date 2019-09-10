@@ -1,7 +1,7 @@
 # References in quickcheck-state-machine
 
-In this blog we will discuss how references work in quickcheck-state-machine and some related bugs I fixed during my
-GSoC project. This blog discusses internals of q-s-m and although having used q-s-m is not necessary it may help in 
+In this blog we will discuss how references work in [quickcheck-state-machine](https://github.com/advancedtelematic/quickcheck-state-machine) and some related bugs I fixed during my
+GSoC project. This blog talks about internals of q-s-m and although having used q-s-m is not necessary it may help in 
 understanding the content. We will follow the example in the [README](https://github.com/advancedtelematic/quickcheck-state-machine/blob/master/README.md), so familiarity with this helps.
 [Here](http://www.well-typed.com/blog/2019/01/qsm-in-depth/) there is a more advanced example.
 
@@ -162,15 +162,13 @@ and the environment will acquire a remap 0 -> 1. After that, both proj1 and proj
 The bug was in the way the model was advanced for the next Pair. It actually used a the Command before being remmaped, 
 so it referenced a Variable which was never created.
 
-
-## The second bug
-
-The second bug was an open issue in q-s-m https://github.com/advancedtelematic/quickcheck-state-machine/issues/302 and it appeared
-from time to time in ci and threw a strange error which confused users. It was fixed with my [pr](https://github.com/advancedtelematic/quickcheck-state-machine/pull/315). This bug also affected me while 
+This bug appeared from time to time in ci and threw a strange error which confused users. It was fixed with my [pr](https://github.com/advancedtelematic/quickcheck-state-machine/pull/315). This bug also affected me while 
 trying to generalize parallelism in q-s-m: In this [pr](https://github.com/advancedtelematic/quickcheck-state-machine/pull/324) I extended parallelism from using strictly 2
-threads, to using a user specified amount of threads. It was basically a generalization from using a Pair, to using a list. Before merging this
+threads, to using a user specified amount of threads. It was basically a generalization from using a Pair, to using a List. Before merging this
 pr I was trying to add a sanity test, which tested the equivalence of the old implementation with the new one for n=2.
 The tests kept failing and it was only when this bug was fixed that the tests passed. More details about this can be found [here](https://github.com/advancedtelematic/quickcheck-state-machine/pull/294#discussion_r272949230).
+
+## The second bug
 
 This bug did not have to do with shrinking like the previous one, but with generation and execution.
 A good question is, what is a valid parallel program, that we should allow to be executed? There is an
